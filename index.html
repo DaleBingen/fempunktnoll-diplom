@@ -1,0 +1,371 @@
+<!--
+  Diplomet (certifikatet) genereras klient-sidigt i denna HTML-fil.
+  Den visar en förhandsvisning av diplomet och låter användaren mata in
+  förnamn och efternamn. När båda namnfälten är ifyllda aktiveras knappen
+  ”Ladda ner PDF” som använder html2pdf.js (via CDN) för att skapa
+  ett A4-sidformat PDF-dokument.
+
+  För att driftsätta denna fil via GitHub Pages:
+    1. Skapa ett nytt GitHub‑repo (t.ex. ”diplomgenerator”).
+    2. Lägg till denna fil som index.html och lägg även till bilden
+       fempunktnoll.png i samma mapp.
+    3. Commita och pusha till main-branch.
+    4. Öppna repo‑inställningarna i GitHub och aktivera GitHub Pages.
+       Välj ”main” som branch och ”root” som folder.
+    5. GitHub genererar en länk, t.ex. https://användarnamn.github.io/diplomgenerator/
+       där diplomet kan köras.
+-->
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diplomgenerator</title>
+  <!-- Google Fonts for heading and script fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Dosis:wght@400;600;700&family=Great+Vibes&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --gold: #c49a5a;
+      --primary-font: 'Dosis', sans-serif;
+      --script-font: 'Great Vibes', cursive;
+    }
+    body {
+      margin: 0;
+      font-family: var(--primary-font);
+      background-color: #f7f7f7;
+      color: #333;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .form-area,
+    .preview-area {
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      border-radius: 8px;
+      background-color: #fff;
+      padding: 20px;
+    }
+    .form-area {
+      flex: 1 1 300px;
+      min-width: 280px;
+    }
+    .preview-area {
+      flex: 2 1 600px;
+      position: relative;
+      overflow: hidden;
+    }
+    h1 {
+      font-family: var(--primary-font);
+      font-weight: 700;
+      font-size: 1.8em;
+      margin-top: 0;
+      color: #333;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 8px 10px;
+      margin-bottom: 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 1rem;
+      box-sizing: border-box;
+    }
+    .helper-text {
+      font-size: 0.8rem;
+      color: #666;
+      margin-top: -12px;
+      margin-bottom: 12px;
+    }
+    button {
+      display: inline-block;
+      background-color: #006699;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      font-size: 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    button:disabled {
+      background-color: #999;
+      cursor: not-allowed;
+    }
+    button:hover:not(:disabled) {
+      background-color: #005580;
+    }
+    /* Diploma preview styling */
+    .diploma {
+      width: 100%;
+      padding-top: 140%; /* approximate A4 ratio */
+      position: relative;
+      background-color: #fdf7ed;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+      overflow: hidden;
+    }
+    .diploma::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      border: 3px solid var(--gold);
+      border-radius: 6px;
+      pointer-events: none;
+    }
+    .diploma::after {
+      content: "";
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      right: 15px;
+      bottom: 15px;
+      border: 2px solid var(--gold);
+      border-radius: 4px;
+      pointer-events: none;
+    }
+    .diploma-content {
+      position: absolute;
+      top: 5%;
+      left: 5%;
+      right: 5%;
+      bottom: 5%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      text-align: center;
+    }
+    .logo {
+      max-width: 180px;
+      height: auto;
+      margin: 0 auto 16px auto;
+    }
+    .certificate-title {
+      font-family: var(--primary-font);
+      font-weight: 700;
+      font-size: 2.2rem;
+      letter-spacing: 0.1rem;
+      margin: 0;
+      color: #000;
+    }
+    .certificate-subtitle {
+      font-family: var(--primary-font);
+      font-weight: 500;
+      font-size: 1.2rem;
+      letter-spacing: 0.3rem;
+      margin: 4px 0 0 0;
+      color: #000;
+    }
+    .presented-text {
+      margin-top: 24px;
+      font-family: var(--primary-font);
+      font-weight: 600;
+      font-size: 0.9rem;
+      letter-spacing: 0.3rem;
+      text-transform: uppercase;
+      color: #000;
+    }
+    .recipient-name {
+      margin: 12px 0;
+      font-family: var(--script-font);
+      color: #000;
+      font-size: 3rem;
+      line-height: 1.2;
+      word-wrap: break-word;
+      width: 100%;
+      max-height: 20%;
+    }
+    .divider {
+      width: 70%;
+      height: 1px;
+      background-color: var(--gold);
+      margin: 12px 0;
+    }
+    .description {
+      font-family: var(--primary-font);
+      font-size: 0.9rem;
+      color: #333;
+      max-width: 90%;
+      margin: 16px 0;
+    }
+    .issue-date {
+      font-family: var(--primary-font);
+      font-size: 0.9rem;
+      color: #333;
+      margin: 8px 0;
+    }
+    .signature-section {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: auto;
+      padding-top: 20px;
+    }
+    .signature {
+      flex: 1;
+      text-align: center;
+    }
+    .sig-title {
+      font-family: var(--primary-font);
+      font-weight: 600;
+      font-size: 1rem;
+      margin-bottom: 4px;
+      color: #000;
+    }
+    .sig-subtitle {
+      font-family: var(--primary-font);
+      font-size: 0.8rem;
+      color: #333;
+      letter-spacing: 0.02rem;
+    }
+    .seal {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #f9d57b 0%, #e6b75c 50%, #d6a24c 100%);
+      margin: 0 20px;
+      flex-shrink: 0;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="form-area">
+      <h1>Skapa ditt certifikat/diplom</h1>
+      <p>Fyll i ditt förnamn och efternamn så visas det på certifikatet.</p>
+      <label for="firstName">Förnamn</label>
+      <input id="firstName" type="text" placeholder="Skriv ditt förnamn" maxlength="40">
+      <div class="helper-text" id="firstNameHelp"></div>
+      <label for="lastName">Efternamn</label>
+      <input id="lastName" type="text" placeholder="Skriv ditt efternamn" maxlength="40">
+      <div class="helper-text" id="lastNameHelp"></div>
+      <button id="downloadBtn" disabled>Ladda ner PDF</button>
+    </div>
+    <div class="preview-area">
+      <div class="diploma" id="diploma">
+        <div class="diploma-content">
+          <!-- Logo: served from same domain to avoid CORS issues on GitHub Pages -->
+          <img class="logo" src="fempunktnoll.png" alt="Fem punkt noll-logo">
+          <h2 class="certificate-title">CERTIFIKAT</h2>
+          <h3 class="certificate-subtitle">DIPLOM</h3>
+          <p class="presented-text">TILLDELAS</p>
+          <div id="recipientName" class="recipient-name">Ditt Namn</div>
+          <div class="divider"></div>
+          <p class="description">Stort grattis till ditt diplom och för att du har tagit nya steg mot att människan kan arbeta med och förstärkas av maskiner med hjälp av ny kunskap, nya färdigheter och ny teknik.</p>
+          <p class="issue-date">Utfärdat den <span id="dateField"></span></p>
+          <div class="signature-section">
+            <div class="signature">
+              <p class="sig-title">Thomas Dalebring</p>
+              <p class="sig-subtitle">AI&nbsp;Expert</p>
+            </div>
+            <div class="seal"></div>
+            <div class="signature">
+              <p class="sig-title">Fredrik Kocon</p>
+              <p class="sig-subtitle">Programansvarig</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- html2pdf.js från CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script>
+    (function() {
+      const firstNameInput = document.getElementById('firstName');
+      const lastNameInput = document.getElementById('lastName');
+      const recipientNameEl = document.getElementById('recipientName');
+      const downloadBtn = document.getElementById('downloadBtn');
+      const dateField = document.getElementById('dateField');
+      const firstNameHelp = document.getElementById('firstNameHelp');
+      const lastNameHelp = document.getElementById('lastNameHelp');
+
+      // Sätt dagens datum i svensk format
+      const today = new Date();
+      dateField.textContent = today.toLocaleDateString('sv-SE', { year: 'numeric', month: 'long', day: 'numeric' });
+
+      function adjustFontSize(el) {
+        const maxSize = 64;
+        const minSize = 18;
+        let fontSize = maxSize;
+        el.style.fontSize = fontSize + 'px';
+        el.style.whiteSpace = 'normal';
+        el.style.wordBreak = 'break-word';
+        while ((el.scrollHeight > el.clientHeight || el.scrollWidth > el.clientWidth) && fontSize > minSize) {
+          fontSize -= 1;
+          el.style.fontSize = fontSize + 'px';
+        }
+      }
+
+      function updateDiploma() {
+        const firstName = firstNameInput.value.trim();
+        const lastName = lastNameInput.value.trim();
+        let valid = true;
+        if (firstName.length > 0 && firstName.length < 2) {
+          firstNameHelp.textContent = 'Förnamnet måste innehålla minst 2 tecken.';
+          valid = false;
+        } else {
+          firstNameHelp.textContent = '';
+        }
+        if (lastName.length > 0 && lastName.length < 2) {
+          lastNameHelp.textContent = 'Efternamnet måste innehålla minst 2 tecken.';
+          valid = false;
+        } else {
+          lastNameHelp.textContent = '';
+        }
+        const fullName = (firstName || lastName) ? `${firstName} ${lastName}`.trim() : '';
+        if (fullName) {
+          recipientNameEl.textContent = fullName;
+          adjustFontSize(recipientNameEl);
+        } else {
+          recipientNameEl.textContent = 'Ditt Namn';
+          recipientNameEl.style.fontSize = '3rem';
+        }
+        downloadBtn.disabled = !(valid && firstName.length >= 2 && lastName.length >= 2);
+      }
+
+      firstNameInput.addEventListener('input', updateDiploma);
+      lastNameInput.addEventListener('input', updateDiploma);
+      updateDiploma();
+
+      async function downloadDiploma() {
+        const element = document.getElementById('diploma');
+        const opt = {
+          margin: 0,
+          filename: `certifikat_${firstNameInput.value.trim()}_${lastNameInput.value.trim()}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, scrollY: 0, useCORS: true, allowTaint: true },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        try {
+          await html2pdf().set(opt).from(element).save();
+        } catch (err) {
+          alert('Något gick fel när PDF-filen skulle genereras. Försök igen.');
+          console.error(err);
+        }
+      }
+      downloadBtn.addEventListener('click', downloadDiploma);
+    })();
+  </script>
+</body>
+</html>
